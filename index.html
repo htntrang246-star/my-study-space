@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Study Space · 11A7</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#20283a;--muted:#748096;--line:#e6eaf1;--blue:#dcecff;--purple:#eee5ff;--green:#dff5e9;--orange:#ffefd9;--pink:#ffe3ec}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#18243a;color:white;padding:22px max(18px,calc((100% - 1100px)/2));display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:22px;margin:0}header p{margin:4px 0 0;color:#c6d2e4;font-size:13px}
+main{max-width:1100px;margin:22px auto;padding:0 16px 40px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#263b5b;color:white;cursor:pointer;font-weight:600}
+button.secondary{background:white;color:#33415b;border:1px solid var(--line)}button.danger{background:#fff0f0;color:#a33131;border:1px solid #ffd6d6}
+.note{color:var(--muted);font-size:13px;margin:0 0 14px}
+.tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 20px #1a2a4510}
+table{border-collapse:collapse;width:100%;min-width:720px}th,td{border:1px solid var(--line);padding:8px;text-align:center;vertical-align:top}th{background:#f8faff;font-size:13px}
+th.day{width:95px}th.session{width:42%}.slot{min-height:58px;display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap}
+.subject{display:inline-flex;align-items:center;gap:5px;border-radius:9px;padding:7px 9px;font-size:13px;font-weight:650;max-width:100%;cursor:pointer;border:1px solid transparent}
+.school{background:var(--blue);color:#24518a}.study{background:var(--green);color:#216442}.extra{background:var(--purple);color:#62449a}.sport{background:var(--orange);color:#8a581b}.subject small{font-weight:500;opacity:.8}
+.empty{color:#c2c9d4;font-size:12px}.below{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:16px}.panel h2{font-size:16px;margin:0 0 12px}.event{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.event:last-child{border:0}.event b{font-size:14px}.event span{font-size:12px;color:var(--muted)}
+.linkrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}a{color:#385f9d;font-weight:600}
+.modal{display:none;position:fixed;inset:0;background:#10182788;align-items:center;justify-content:center;padding:16px;z-index:5}.modal.open{display:flex}.dialog{background:white;border-radius:18px;padding:20px;width:min(440px,100%);max-height:90vh;overflow:auto}.dialog h2{margin:0 0 14px;font-size:19px}label{display:block;font-size:13px;font-weight:650;margin:10px 0 5px}input,select{width:100%;padding:10px;border:1px solid #d9dfeb;border-radius:9px;font:inherit}.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+@media(max-width:650px){.below{grid-template-columns:1fr}header{padding:18px}.slot{min-height:62px}}
+</style>
+</head>
+<body>
+<header><div><h1>My Study Space</h1><p>Thời khóa biểu tổng hợp · Lớp 11A7</p></div><button id="notifyBtn">🔔 Bật nhắc nhở</button></header>
+<main>
+<div class="toolbar"><button id="addBtn">＋ Thêm hoạt động</button><button class="secondary" id="resetBtn">Khôi phục lịch gốc</button><button class="secondary" id="exportBtn">Xuất lịch (.json)</button><label class="btn secondary" style="display:inline-flex;align-items:center;margin:0">Nhập lịch <input id="importFile" type="file" accept=".json" hidden></label></div>
+<p class="note">Lịch học ở trường nằm theo tiết sáng/chiều; học thêm và võ được ghép trực tiếp vào đúng buổi theo giờ cố định. Chạm vào môn học ở trường để sửa hoặc xóa.</p>
+<div class="tablewrap"><table id="schedule"></table></div>
+<div class="below">
+<section class="panel"><h2>📌 Ghi chú lịch cố định</h2><div id="fixed"></div></section>
+<section class="panel"><h2>🔗 Khóa học của mình</h2><div id="courses"></div><p class="note">Thêm link khóa học bằng nút “Thêm hoạt động”, chọn loại “Link khóa học”, hoặc sửa link tại đây.</p></section>
+</div>
+</main>
+<div class="modal" id="modal"><div class="dialog"><h2 id="modalTitle">Thêm hoạt động</h2>
+<label>Hoạt động / môn học</label><input id="name" placeholder="Ví dụ: Hóa học">
+<label>Ngày</label><select id="day"><option>Thứ 2</option><option>Thứ 3</option><option>Thứ 4</option><option>Thứ 5</option><option>Thứ 6</option><option>Thứ 7</option><option>Chủ nhật</option></select>
+<label>Buổi / thời gian</label><select id="period"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Khác">Khác</option></select>
+<label>Tiết (nếu là lịch ở trường)</label><select id="slot"><option value="1">Tiết 1</option><option value="2">Tiết 2</option><option value="3">Tiết 3</option><option value="4">Tiết 4</option><option value="5">Tiết 5</option></select>
+<label>Giờ bắt đầu (để nhắc)</label><input id="time" type="time">
+<label>Loại</label><select id="kind"><option value="school">Học ở trường</option><option value="study">Tự học</option><option value="extra">Học thêm</option><option value="sport">Võ / thể thao</option><option value="link">Link khóa học</option></select>
+<label>Đường dẫn (không bắt buộc)</label><input id="url" type="url" placeholder="https://...">
+<div class="actions"><button class="danger" id="deleteBtn" style="margin-right:auto;display:none">Xóa</button><button class="secondary" id="cancelBtn">Hủy</button><button id="saveBtn">Lưu</button></div></div></div>
+<script>
+const days=['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ nhật'];
+const original=[
+['Thứ 2','Sáng',1,'C.Cờ - Phượng','school'],['Thứ 2','Sáng',2,'Văn - ĐoànV','school'],['Thứ 2','Sáng',3,'Văn - ĐoànV','school'],['Thứ 2','Sáng',4,'Tin - Toàn','school'],['Thứ 2','Chiều',3,'GDTC - Linh','school'],['Thứ 2','Chiều',4,'GDĐP Địa lí - ĐoànĐịa','school'],
+['Thứ 3','Sáng',1,'Toán - Hân','school'],['Thứ 3','Sáng',2,'Toán - Hân','school'],['Thứ 3','Sáng',3,'Sinh - Nhanh','school'],['Thứ 3','Sáng',4,'V.Lí - Thuận','school'],['Thứ 3','Chiều',3,'V.Lí - Thuận','school'],['Thứ 3','Chiều',4,'HĐ TNHN - NguyênLi','school'],
+['Thứ 4','Sáng',1,'Sử - Hằng','school'],['Thứ 4','Sáng',2,'Sử - Hằng','school'],['Thứ 4','Sáng',3,'T.Anh - Phượng','school'],['Thứ 4','Sáng',4,'T.Anh - Phượng','school'],['Thứ 4','Chiều',2,'HĐ TNHN - NguyênLi','school'],['Thứ 4','Chiều',3,'Toán - Hân','school'],['Thứ 4','Chiều',4,'GDTC - Linh','school'],
+['Thứ 5','Sáng',1,'Hoá - ThảoH','school'],['Thứ 5','Sáng',2,'Văn - ĐoànV','school'],['Thứ 5','Sáng',3,'Tin - Toàn','school'],['Thứ 5','Sáng',4,'V.Lí - Thuận','school'],['Thứ 5','Chiều',2,'Hoá - ThảoH','school'],['Thứ 5','Chiều',3,'GDAN&QP - Thông','school'],
+['Thứ 6','Sáng',1,'Toán - Hân','school'],['Thứ 6','Sáng',2,'Sinh - Nhanh','school'],['Thứ 6','Sáng',3,'Hoá - ThảoH','school'],['Thứ 6','Sáng',4,'T.Anh - Phượng','school'],['Thứ 6','Sáng',5,'SHL - Phượng','school']
+].map((x,i)=>({id:'s'+i,day:x[0],period:x[1],slot:x[2],name:x[3],kind:x[4],time:'',url:''}));
+const fixed=[
+{day:'Thứ 2',name:'Tiếng Anh',time:'17:30–19:00',kind:'extra'},
+{day:'Thứ 3',name:'Toán',time:'13:30–15:00',kind:'extra'},
+{day:'Thứ 5',name:'Võ',time:'18:30–20:00',kind:'sport'},
+{day:'Thứ 6',name:'Tiếng Anh',time:'17:00–18:30',kind:'extra'},
+{day:'Chủ nhật',name:'Toán',time:'09:00–10:30',kind:'extra'},
+{day:'Chủ nhật',name:'Võ',time:'18:30–20:00',kind:'sport'}
+];
+let data=JSON.parse(localStorage.getItem('studySchedule')||'null')||[...original];
+let editing=null;
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem('studySchedule',JSON.stringify(data));render()}
+function render(){
+ let t='<tr><th class="day">Ngày</th><th class="session">Sáng</th><th class="session">Chiều</th></tr>';
+ days.forEach(d=>{t+=`<tr><th class="day">${d}</th>`;['Sáng','Chiều'].forEach(p=>{
+   let items=data.filter(x=>x.day===d&&x.period===p&&x.kind==='school').sort((a,b)=>a.slot-b.slot);
+   let extras=fixed.filter(x=>x.day===d&&((p==='Sáng'&&x.time.startsWith('09:'))||(p==='Chiều'&&['13:30','17:00','17:30'].some(tm=>x.time.startsWith(tm)))));
+   let count=d==='Thứ 6'&&p==='Sáng'?5:4;
+   t+=`<td><div class="slot">${Array.from({length:count},(_,i)=>{let item=items.find(x=>Number(x.slot)===i+1);return item?`<button class="subject ${item.kind}" data-id="${item.id}" title="Nhấn để sửa">${item.name}<small>· ${i+1}</small></button>`:`<span class="empty">Tiết ${i+1}</span>`}).join('')}</div>${extras.map(x=>`<div style="margin-top:7px"><span class="subject ${x.kind}">${x.name}<small>· ${x.time}</small></span></div>`).join('')}</td>`
+ });t+='</tr>'});
+ t+='<tr><th>Tối</th><td colspan="2"><div class="slot">'+fixed.filter(x=>x.time.startsWith('18:')).map(x=>`<span class="subject ${x.kind}">${x.day}: ${x.name}<small>· ${x.time}</small></span>`).join('')+'</div></td></tr>';
+ $('schedule').innerHTML=t;
+ document.querySelectorAll('.subject').forEach(b=>b.onclick=()=>openEdit(b.dataset.id));
+ $('fixed').innerHTML='<p class="note">Các lịch học thêm và võ đã được hiển thị trực tiếp trong thời khóa biểu phía trên.</p>';
+ let links=data.filter(x=>x.kind==='link'||x.url);$('courses').innerHTML=links.length?links.map(x=>`<div class="linkrow"><b>${x.name}</b>${x.url?`<a href="${x.url}" target="_blank" rel="noopener">Mở ↗</a>`:'<span>Chưa có link</span>'}</div>`).join(''):'<p class="note">Chưa thêm khóa học. Hãy thêm môn và dán link khóa học của bạn.</p>';
+}
+function openEdit(id){let x=data.find(a=>a.id===id);editing=id;fill(x);$('modalTitle').textContent='Chỉnh sửa hoạt động';$('deleteBtn').style.display='inline-block';$('modal').classList.add('open')}
+function fill(x={day:'Thứ 2',period:'Sáng',slot:1,name:'',kind:'study',time:'',url:''}){['name','day','period','slot','time','kind','url'].forEach(k=>$(k).value=x[k]??'')}
+function openAdd(){editing=null;fill();$('modalTitle').textContent='Thêm hoạt động';$('deleteBtn').style.display='none';$('modal').classList.add('open')}
+$('addBtn').onclick=openAdd;$('cancelBtn').onclick=()=>$('modal').classList.remove('open');
+$('saveBtn').onclick=()=>{let x={id:editing||'u'+Date.now(),...Object.fromEntries(['name','day','period','slot','time','kind','url'].map(k=>[k,$(k).value.trim()]))};if(!x.name){alert('Bạn hãy nhập tên hoạt động nhé.');return}if(editing)data=data.map(a=>a.id===editing?x:a);else data.push(x);$('modal').classList.remove('open');save()};
+$('deleteBtn').onclick=()=>{if(confirm('Xóa hoạt động này?')){data=data.filter(x=>x.id!==editing);$('modal').classList.remove('open');save()}};
+$('resetBtn').onclick=()=>{if(confirm('Khôi phục lịch trường theo ảnh ban đầu? Các chỉnh sửa hiện tại sẽ bị thay thế.')){data=[...original];save()}};
+$('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lich-hoc-cua-toi.json';a.click();URL.revokeObjectURL(a.href)};
+$('importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save()}catch{alert('File lịch không hợp lệ.')}};r.readAsText(f)};
+$('notifyBtn').onclick=async()=>{if(!('Notification'in window)){alert('Trình duyệt này không hỗ trợ thông báo.');return}let p=await Notification.requestPermission();alert(p==='granted'?'Đã bật quyền thông báo. Hãy giữ website mở để nhận nhắc giờ học.':'Bạn chưa cấp quyền thông báo.')};
+// Reminders: for entries with a time, notify at the selected time; the page must remain open.
+let notified=new Set();setInterval(()=>{if(!('Notification'in window)||Notification.permission!=='granted')return;let now=new Date(),day=days[(now.getDay()+6)%7],hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');data.forEach(x=>{if(x.day===day&&x.time===hh+':'+mm&&!notified.has(x.id+hh+mm)){new Notification('Đến giờ học rồi!',{body:x.name});notified.add(x.id+hh+mm)}})},20000);
+render();
+</script>
+</body></html>
