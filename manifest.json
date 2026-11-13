@@ -1,0 +1,10 @@
+{
+  "name": "My Study Space",
+  "short_name": "Study Space",
+  "id": "/my-study-space/",
+  "start_url": "/my-study-space/",
+  "scope": "/my-study-space/",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#18243a"
+}
