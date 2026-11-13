@@ -27,7 +27,7 @@ th.day{width:95px}th.session{width:42%}.slot{min-height:58px;display:flex;align-
 <header><div><h1>My Study Space</h1><p>Thời khóa biểu tổng hợp · Lớp 11A7</p></div><button id="notifyBtn">🔔 Bật nhắc nhở</button></header>
 <main>
 <div class="toolbar"><button id="addBtn">＋ Thêm hoạt động</button><button class="secondary" id="resetBtn">Khôi phục lịch gốc</button><button class="secondary" id="exportBtn">Xuất lịch (.json)</button><label class="btn secondary" style="display:inline-flex;align-items:center;margin:0">Nhập lịch <input id="importFile" type="file" accept=".json" hidden></label></div>
-<p class="note">Lịch học ở trường nằm theo tiết sáng/chiều; học thêm và võ được ghép trực tiếp vào đúng buổi theo giờ cố định. Chạm vào môn học ở trường để sửa hoặc xóa.</p>
+<p class="note">Lịch ở trường, học thêm, võ và tự học được hiển thị chung. Với hoạt động tự học, hãy nhập giờ bắt đầu/kết thúc và link khóa học; website sẽ nhắc trước 15 phút khi đang mở.</p>
 <div class="tablewrap"><table id="schedule"></table></div>
 <div class="below">
 <section class="panel"><h2>📌 Ghi chú lịch cố định</h2><div id="fixed"></div></section>
@@ -39,7 +39,8 @@ th.day{width:95px}th.session{width:42%}.slot{min-height:58px;display:flex;align-
 <label>Ngày</label><select id="day"><option>Thứ 2</option><option>Thứ 3</option><option>Thứ 4</option><option>Thứ 5</option><option>Thứ 6</option><option>Thứ 7</option><option>Chủ nhật</option></select>
 <label>Buổi / thời gian</label><select id="period"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Khác">Khác</option></select>
 <label>Tiết (nếu là lịch ở trường)</label><select id="slot"><option value="1">Tiết 1</option><option value="2">Tiết 2</option><option value="3">Tiết 3</option><option value="4">Tiết 4</option><option value="5">Tiết 5</option></select>
-<label>Giờ bắt đầu (để nhắc)</label><input id="time" type="time">
+<label>Giờ bắt đầu</label><input id="time" type="time">
+<label>Giờ kết thúc</label><input id="endTime" type="time">
 <label>Loại</label><select id="kind"><option value="school">Học ở trường</option><option value="study">Tự học</option><option value="extra">Học thêm</option><option value="sport">Võ / thể thao</option><option value="link">Link khóa học</option></select>
 <label>Đường dẫn (không bắt buộc)</label><input id="url" type="url" placeholder="https://...">
 <div class="actions"><button class="danger" id="deleteBtn" style="margin-right:auto;display:none">Xóa</button><button class="secondary" id="cancelBtn">Hủy</button><button id="saveBtn">Lưu</button></div></div></div>
@@ -66,30 +67,88 @@ const $=id=>document.getElementById(id);
 function save(){localStorage.setItem('studySchedule',JSON.stringify(data));render()}
 function render(){
  let t='<tr><th class="day">Ngày</th><th class="session">Sáng</th><th class="session">Chiều</th></tr>';
- days.forEach(d=>{t+=`<tr><th class="day">${d}</th>`;['Sáng','Chiều'].forEach(p=>{
-   let items=data.filter(x=>x.day===d&&x.period===p&&x.kind==='school').sort((a,b)=>a.slot-b.slot);
-   let extras=fixed.filter(x=>x.day===d&&((p==='Sáng'&&x.time.startsWith('09:'))||(p==='Chiều'&&['13:30','17:00','17:30'].some(tm=>x.time.startsWith(tm)))));
-   let count=d==='Thứ 6'&&p==='Sáng'?5:4;
-   t+=`<td><div class="slot">${Array.from({length:count},(_,i)=>{let item=items.find(x=>Number(x.slot)===i+1);return item?`<button class="subject ${item.kind}" data-id="${item.id}" title="Nhấn để sửa">${item.name}<small>· ${i+1}</small></button>`:`<span class="empty">Tiết ${i+1}</span>`}).join('')}</div>${extras.map(x=>`<div style="margin-top:7px"><span class="subject ${x.kind}">${x.name}<small>· ${x.time}</small></span></div>`).join('')}</td>`
- });t+='</tr>'});
- t+='<tr><th>Tối</th><td colspan="2"><div class="slot">'+fixed.filter(x=>x.time.startsWith('18:')).map(x=>`<span class="subject ${x.kind}">${x.day}: ${x.name}<small>· ${x.time}</small></span>`).join('')+'</div></td></tr>';
+ days.forEach(d=>{
+   t+=`<tr><th class="day">${d}</th>`;
+   ['Sáng','Chiều'].forEach(p=>{
+     let items=data.filter(x=>x.day===d&&x.period===p&&x.kind==='school').sort((a,b)=>a.slot-b.slot);
+     let extras=fixed.filter(x=>x.day===d&&((p==='Sáng'&&x.time.startsWith('09:'))||(p==='Chiều'&&['13:30','17:00','17:30'].some(tm=>x.time.startsWith(tm)))));
+     let count=d==='Thứ 6'&&p==='Sáng'?5:4;
+     let schoolSlots=Array.from({length:count},(_,i)=>{
+       let item=items.find(x=>Number(x.slot)===i+1);
+       return item?`<button class="subject ${item.kind}" data-id="${item.id}" title="Nhấn để sửa">${escapeHtml(item.name)}<small>· ${i+1}</small></button>`:`<span class="empty">Tiết ${i+1}</span>`;
+     }).join('');
+     let scheduled=data.filter(x=>x.day===d&&x.period===p&&x.kind!=='school');
+     t+=`<td><div class="slot">${schoolSlots}</div>${extras.map(x=>`<div style="margin-top:7px"><span class="subject ${x.kind}">${escapeHtml(x.name)}<small>· ${x.time}</small></span></div>`).join('')}${scheduled.map(x=>activityHtml(x)).join('')}</td>`;
+   });
+   t+='</tr>';
+ });
+ let eveningFixed=fixed.filter(x=>x.time.startsWith('18:'));
+ let eveningCustom=data.filter(x=>x.period==='Tối'||x.period==='Khác');
+ t+='<tr><th>Tối / Khác</th><td colspan="2"><div class="slot">'+
+   eveningFixed.map(x=>`<span class="subject ${x.kind}">${x.day}: ${escapeHtml(x.name)}<small>· ${x.time}</small></span>`).join('')+
+   eveningCustom.map(x=>activityHtml(x,true)).join('')+
+   '</div></td></tr>';
  $('schedule').innerHTML=t;
- document.querySelectorAll('.subject').forEach(b=>b.onclick=()=>openEdit(b.dataset.id));
- $('fixed').innerHTML='<p class="note">Các lịch học thêm và võ đã được hiển thị trực tiếp trong thời khóa biểu phía trên.</p>';
- let links=data.filter(x=>x.kind==='link'||x.url);$('courses').innerHTML=links.length?links.map(x=>`<div class="linkrow"><b>${x.name}</b>${x.url?`<a href="${x.url}" target="_blank" rel="noopener">Mở ↗</a>`:'<span>Chưa có link</span>'}</div>`).join(''):'<p class="note">Chưa thêm khóa học. Hãy thêm môn và dán link khóa học của bạn.</p>';
+ document.querySelectorAll('.subject[data-id]').forEach(b=>b.onclick=()=>openEdit(b.dataset.id));
+ $('fixed').innerHTML='<p class="note">Các lịch học thêm và võ cố định đã được hiển thị trực tiếp trong thời khóa biểu phía trên.</p>';
+ let links=data.filter(x=>x.kind==='link'||x.url);
+ $('courses').innerHTML=links.length?links.map(x=>`<div class="linkrow"><b>${escapeHtml(x.name)}</b>${x.url?`<a href="${safeUrl(x.url)}" target="_blank" rel="noopener">Mở ↗</a>`:'<span>Chưa có link</span>'}</div>`).join(''):'<p class="note">Chưa thêm khóa học. Hãy thêm môn và dán link khóa học của bạn.</p>';
+}
+function escapeHtml(value){
+ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function safeUrl(value){
+ try{let u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:'#'}catch{return '#'}
+}
+function activityHtml(x){
+ let time=x.time?(x.endTime?`${x.time}–${x.endTime}`:x.time):'Chưa đặt giờ';
+ let label=`${escapeHtml(x.name)} · ${time}`;
+ if(x.url){
+   return `<div style="margin-top:7px"><a href="${safeUrl(x.url)}" target="_blank" rel="noopener" style="text-decoration:none"><span class="subject ${x.kind}" data-id="${escapeHtml(x.id)}">${label} ↗</span></a></div>`;
+ }
+ return `<div style="margin-top:7px"><button class="subject ${x.kind}" data-id="${escapeHtml(x.id)}">${label}</button></div>`;
 }
 function openEdit(id){let x=data.find(a=>a.id===id);editing=id;fill(x);$('modalTitle').textContent='Chỉnh sửa hoạt động';$('deleteBtn').style.display='inline-block';$('modal').classList.add('open')}
-function fill(x={day:'Thứ 2',period:'Sáng',slot:1,name:'',kind:'study',time:'',url:''}){['name','day','period','slot','time','kind','url'].forEach(k=>$(k).value=x[k]??'')}
+function fill(x={day:'Thứ 2',period:'Sáng',slot:1,name:'',kind:'study',time:'',endTime:'',url:''}){['name','day','period','slot','time','endTime','kind','url'].forEach(k=>$(k).value=x[k]??'')}
 function openAdd(){editing=null;fill();$('modalTitle').textContent='Thêm hoạt động';$('deleteBtn').style.display='none';$('modal').classList.add('open')}
 $('addBtn').onclick=openAdd;$('cancelBtn').onclick=()=>$('modal').classList.remove('open');
-$('saveBtn').onclick=()=>{let x={id:editing||'u'+Date.now(),...Object.fromEntries(['name','day','period','slot','time','kind','url'].map(k=>[k,$(k).value.trim()]))};if(!x.name){alert('Bạn hãy nhập tên hoạt động nhé.');return}if(editing)data=data.map(a=>a.id===editing?x:a);else data.push(x);$('modal').classList.remove('open');save()};
+$('saveBtn').onclick=()=>{let x={id:editing||'u'+Date.now(),...Object.fromEntries(['name','day','period','slot','time','endTime','kind','url'].map(k=>[k,$(k).value.trim()]))};if(!x.name){alert('Bạn hãy nhập tên hoạt động nhé.');return}if(editing)data=data.map(a=>a.id===editing?x:a);else data.push(x);$('modal').classList.remove('open');save()};
 $('deleteBtn').onclick=()=>{if(confirm('Xóa hoạt động này?')){data=data.filter(x=>x.id!==editing);$('modal').classList.remove('open');save()}};
 $('resetBtn').onclick=()=>{if(confirm('Khôi phục lịch trường theo ảnh ban đầu? Các chỉnh sửa hiện tại sẽ bị thay thế.')){data=[...original];save()}};
 $('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lich-hoc-cua-toi.json';a.click();URL.revokeObjectURL(a.href)};
 $('importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save()}catch{alert('File lịch không hợp lệ.')}};r.readAsText(f)};
-$('notifyBtn').onclick=async()=>{if(!('Notification'in window)){alert('Trình duyệt này không hỗ trợ thông báo.');return}let p=await Notification.requestPermission();alert(p==='granted'?'Đã bật quyền thông báo. Hãy giữ website mở để nhận nhắc giờ học.':'Bạn chưa cấp quyền thông báo.')};
-// Reminders: for entries with a time, notify at the selected time; the page must remain open.
-let notified=new Set();setInterval(()=>{if(!('Notification'in window)||Notification.permission!=='granted')return;let now=new Date(),day=days[(now.getDay()+6)%7],hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');data.forEach(x=>{if(x.day===day&&x.time===hh+':'+mm&&!notified.has(x.id+hh+mm)){new Notification('Đến giờ học rồi!',{body:x.name});notified.add(x.id+hh+mm)}})},20000);
+$('notifyBtn').onclick=async()=>{
+ if(!('Notification'in window)){alert('Trình duyệt này không hỗ trợ thông báo.');return}
+ let p=await Notification.requestPermission();
+ if(p==='granted'){
+   $('notifyBtn').textContent='🔔 Đã bật nhắc nhở';checkReminders();
+   alert('Đã bật nhắc nhở trước 15 phút. Hãy giữ website mở để nhận thông báo.');
+ }else{
+   alert('Bạn chưa cấp quyền thông báo. Hãy cho phép thông báo trong cài đặt trình duyệt.');
+ }
+};
+// Nhắc trước 15 phút. Trình duyệt chỉ kiểm tra được khi trang web còn mở.
+let notified=new Set();
+function checkReminders(){
+ if(!('Notification'in window)||Notification.permission!=='granted')return;
+ const now=new Date();
+ const day=days[(now.getDay()+6)%7];
+ data.forEach(x=>{
+   if(!x.time||x.day!==day)return;
+   const parts=x.time.split(':').map(Number);
+   if(parts.length!==2||parts.some(Number.isNaN))return;
+   const target=new Date(now);
+   target.setHours(parts[0],parts[1],0,0);
+   const diff=Math.round((target-now)/60000);
+   const key=`${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}-${x.id}`;
+   if(diff===15&&!notified.has(key)){
+     new Notification('Sắp đến giờ học!',{body:`${x.name} bắt đầu lúc ${x.time}${x.endTime?' – '+x.endTime:''}.`});
+     notified.add(key);
+   }
+ });
+}
+setInterval(checkReminders,15000);
+checkReminders();
 render();
 </script>
 </body></html>
