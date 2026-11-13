@@ -3,6 +3,18 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My Study Space · 11A7</title>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async function (OneSignal) {
+    await OneSignal.init({
+      appId: "00dc837c-c7cb-436b-a8ac-b42d082b947b",
+      serviceWorkerPath: "/my-study-space/OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/my-study-space/" },
+      promptOptions: { slidedown: { prompts: [{ type: "push", autoPrompt: false }] } }
+    });
+  });
+</script>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--ink:#20283a;--muted:#748096;--line:#e6eaf1;--blue:#dcecff;--purple:#eee5ff;--green:#dff5e9;--orange:#ffefd9;--pink:#ffe3ec}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
@@ -118,14 +130,26 @@ $('resetBtn').onclick=()=>{if(confirm('Khôi phục lịch trường theo ảnh 
 $('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lich-hoc-cua-toi.json';a.click();URL.revokeObjectURL(a.href)};
 $('importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save()}catch{alert('File lịch không hợp lệ.')}};r.readAsText(f)};
 $('notifyBtn').onclick=async()=>{
- if(!('Notification'in window)){alert('Trình duyệt này không hỗ trợ thông báo.');return}
- let p=await Notification.requestPermission();
- if(p==='granted'){
-   $('notifyBtn').textContent='🔔 Đã bật nhắc nhở';checkReminders();
-   alert('Đã bật nhắc nhở trước 15 phút. Hãy giữ website mở để nhận thông báo.');
- }else{
-   alert('Bạn chưa cấp quyền thông báo. Hãy cho phép thông báo trong cài đặt trình duyệt.');
- }
+  if (!window.OneSignalDeferred) {
+    alert('OneSignal chưa tải xong. Bạn thử tải lại trang nhé.');
+    return;
+  }
+  window.OneSignalDeferred.push(async function (OneSignal) {
+    try {
+      if (!OneSignal.Notifications.isPushSupported()) {
+        alert('Trình duyệt hoặc chế độ hiện tại chưa hỗ trợ thông báo đẩy.');
+        return;
+      }
+      await OneSignal.Slidedown.promptPush();
+      if (OneSignal.Notifications.permission) {
+        $('notifyBtn').textContent='🔔 Đã bật thông báo';
+        alert('Đã cấp quyền thông báo cho StudyFRV.');
+      }
+    } catch (error) {
+      console.error('OneSignal prompt error:', error);
+      alert('Chưa bật được thông báo. Hãy kiểm tra cài đặt Web Push trong OneSignal và thử lại.');
+    }
+  });
 };
 // Nhắc trước 15 phút. Trình duyệt chỉ kiểm tra được khi trang web còn mở.
 let notified=new Set();
