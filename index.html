@@ -6,15 +6,24 @@
 <title>My Study Space · 11A7</title>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push(async function (OneSignal) {
+  
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+window.studyOneSignal = null;
+
+window.OneSignalDeferred.push(async function (OneSignal) {
+  try {
     await OneSignal.init({
       appId: "00dc837c-c7cb-436b-a8ac-b42d082b947b",
       serviceWorkerPath: "/my-study-space/OneSignalSDKWorker.js",
-      serviceWorkerParam: { scope: "/my-study-space/" },
-      promptOptions: { slidedown: { prompts: [{ type: "push", autoPrompt: false }] } }
+      serviceWorkerParam: { scope: "/my-study-space/" }
     });
-  });
+
+    window.studyOneSignal = OneSignal;
+    console.log("OneSignal đã khởi tạo thành công");
+  } catch (error) {
+    console.error("Lỗi khởi tạo OneSignal:", error);
+  }
+});
 </script>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--ink:#20283a;--muted:#748096;--line:#e6eaf1;--blue:#dcecff;--purple:#eee5ff;--green:#dff5e9;--orange:#ffefd9;--pink:#ffe3ec}
@@ -130,29 +139,40 @@ $('deleteBtn').onclick=()=>{if(confirm('Xóa hoạt động này?')){data=data.f
 $('resetBtn').onclick=()=>{if(confirm('Khôi phục lịch trường theo ảnh ban đầu? Các chỉnh sửa hiện tại sẽ bị thay thế.')){data=[...original];save()}};
 $('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lich-hoc-cua-toi.json';a.click();URL.revokeObjectURL(a.href)};
 $('importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save()}catch{alert('File lịch không hợp lệ.')}};r.readAsText(f)};
-$('notifyBtn').onclick=async()=>{
-  if (!window.OneSignalDeferred) {
-    alert('OneSignal chưa tải xong. Bạn thử tải lại trang nhé.');
+
+$('notifyBtn').onclick = () => {
+  const OneSignal = window.studyOneSignal;
+
+  if (!OneSignal) {
+    alert('OneSignal chưa sẵn sàng. Hãy tải lại trang nhé!');
     return;
   }
-  window.OneSignalDeferred.push(async function (OneSignal) {
-    try {
-      if (!OneSignal.Notifications.isPushSupported()) {
-        alert('Trình duyệt hoặc chế độ hiện tại chưa hỗ trợ thông báo đẩy.');
-        return;
+
+  if (!OneSignal.Notifications.isPushSupported()) {
+    alert('Thiết bị chưa hỗ trợ thông báo đẩy.');
+    return;
+  }
+
+  if (OneSignal.Notifications.permission) {
+    $('notifyBtn').textContent = '🔔 Đã bật thông báo';
+    alert('Thông báo đã được cấp quyền!');
+    return;
+  }
+
+  OneSignal.Notifications.requestPermission()
+    .then(granted => {
+      if (granted) {
+        $('notifyBtn').textContent = '🔔 Đã bật thông báo';
+        alert('Đã bật thông báo thành công!');
+      } else {
+        alert('Bạn chưa cấp quyền thông báo. Hãy kiểm tra Cài đặt iPhone nhé!');
       }
-      await OneSignal.Slidedown.promptPush();
-      if (OneSignal.Notifications.permission) {
-        $('notifyBtn').textContent='🔔 Đã bật thông báo';
-        alert('Đã cấp quyền thông báo cho StudyFRV.');
-      }
-    } catch (error) {
-      console.error('OneSignal prompt error:', error);
-      alert('Chưa bật được thông báo. Hãy kiểm tra cài đặt Web Push trong OneSignal và thử lại.');
-    }
-  });
+    })
+    .catch(error => {
+      console.error(error);
+      alert('Không thể bật thông báo. Hãy thử lại nhé!');
+    });
 };
-// Nhắc trước 15 phút. Trình duyệt chỉ kiểm tra được khi trang web còn mở.
 let notified=new Set();
 function checkReminders(){
  if(!('Notification'in window)||Notification.permission!=='granted')return;
